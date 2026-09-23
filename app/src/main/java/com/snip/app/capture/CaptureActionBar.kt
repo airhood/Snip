@@ -3,6 +3,7 @@ package com.snip.app.capture
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -27,7 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size as ComposeSize
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -107,7 +111,32 @@ fun DrawToggleButton(enabled: Boolean, onToggle: () -> Unit) {
                 .clickable(interactionSource = MutableInteractionSource(), indication = null, onClick = onToggle),
             contentAlignment = Alignment.Center,
         ) {
-            Text("✏️", fontSize = 20.sp)
+            PenIcon(tint = if (enabled) Color.White else Color(0xFFC7CCDA), size = 20.dp)
+        }
+    }
+}
+
+/** Hand-drawn single-color pencil glyph — a rotated rounded body plus a triangular tip. The
+ * emoji version wasn't actually a monochrome icon (it's a small colorful bitmap glyph), which
+ * clashed with the rest of the UI's flat line-art language. */
+@Composable
+private fun PenIcon(tint: Color, size: androidx.compose.ui.unit.Dp) {
+    Canvas(modifier = Modifier.size(size)) {
+        rotate(45f) {
+            val w = size.toPx()
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(w * 0.12f, w * 0.42f),
+                size = ComposeSize(w * 0.56f, w * 0.16f),
+                cornerRadius = CornerRadius(w * 0.08f, w * 0.08f),
+            )
+            val tip = androidx.compose.ui.graphics.Path().apply {
+                moveTo(w * 0.68f, w * 0.40f)
+                lineTo(w * 0.68f, w * 0.60f)
+                lineTo(w * 0.86f, w * 0.50f)
+                close()
+            }
+            drawPath(tip, tint)
         }
     }
 }

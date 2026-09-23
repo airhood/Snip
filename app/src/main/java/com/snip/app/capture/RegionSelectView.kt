@@ -116,7 +116,7 @@ class RegionSelectView(context: Context) : View(context) {
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         isAntiAlias = true
-        strokeWidth = resources.displayMetrics.density * 5f
+        strokeWidth = resources.displayMetrics.density * 3.75f // matches the selection pen's core stroke
         color = Color.RED
     }
     private var lastAnnX = 0f
@@ -180,6 +180,9 @@ class RegionSelectView(context: Context) : View(context) {
                     penPath.reset()
                     penPath.moveTo(startX, startY)
                 }
+                // A new selection is a fresh start — any markup drawn for the previous one
+                // no longer applies to whatever region ends up chosen this time.
+                annotationCanvas?.drawColor(Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
                 // Hide the action panel the instant a new drag starts, not just while none is
                 // selected yet — otherwise it keeps covering (and eating touches over) the
                 // bottom of the screen while the user tries to draw a new box there.
