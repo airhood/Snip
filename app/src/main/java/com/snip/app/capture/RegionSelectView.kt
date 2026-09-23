@@ -40,7 +40,7 @@ class RegionSelectView(context: Context) : View(context) {
     /** Freehand markup (notes/highlights) baked into the final image, independent of region
      * selection — drawn in a solid user-chosen color rather than the selection tools' glow. */
     var drawModeEnabled: Boolean = false
-    var annotationColor: Int = Color.RED
+    var annotationColor: Int = Color.parseColor("#6FA8F0")
         set(value) {
             field = value
             annotationPaint.color = value
@@ -117,7 +117,7 @@ class RegionSelectView(context: Context) : View(context) {
         strokeJoin = Paint.Join.ROUND
         isAntiAlias = true
         strokeWidth = resources.displayMetrics.density * 3.75f // matches the selection pen's core stroke
-        color = Color.RED
+        color = Color.parseColor("#6FA8F0")
     }
     private var lastAnnX = 0f
     private var lastAnnY = 0f

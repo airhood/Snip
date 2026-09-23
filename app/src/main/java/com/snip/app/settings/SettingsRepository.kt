@@ -26,7 +26,7 @@ data class SnipSettings(
     val activeProvider: AiProvider = AiProvider.ANTHROPIC,
     val modelByProvider: Map<AiProvider, String> = AiProvider.entries.associateWith { it.defaultModel },
     val defaultSelectionMode: SelectionMode = SelectionMode.RECTANGLE,
-    val annotationColor: Int = 0xFFFF5C5C.toInt(),
+    val annotationColor: Int = 0xFF6FA8F0.toInt(),
 )
 
 class SettingsRepository(context: Context) {
@@ -61,7 +61,7 @@ class SettingsRepository(context: Context) {
             },
             defaultSelectionMode = prefs[Keys.DEFAULT_SELECTION_MODE]?.let { runCatching { SelectionMode.valueOf(it) }.getOrNull() }
                 ?: SelectionMode.RECTANGLE,
-            annotationColor = prefs[Keys.ANNOTATION_COLOR] ?: 0xFFFF5C5C.toInt(),
+            annotationColor = prefs[Keys.ANNOTATION_COLOR] ?: 0xFF6FA8F0.toInt(),
         )
     }
 
