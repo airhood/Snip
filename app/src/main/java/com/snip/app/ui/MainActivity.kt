@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.snip.app.SnipApplication
 import com.snip.app.ai.AiProvider
+import com.snip.app.capture.SelectionMode
 import com.snip.app.settings.ActivationMode
 import com.snip.app.settings.EdgeSide
 import com.snip.app.settings.ResponseMode
@@ -64,6 +65,15 @@ private val SurfaceDark = Color(0xFF14151B)
 private val CardDark = Color(0xFF1B1D25)
 private val CardBorder = Color(0x1FFFFFFF)
 private val TextMuted = Color(0xFF8F94A3)
+
+private val AnnotationColorPresets = listOf(
+    0xFFFF5C5C.toInt(), // red
+    0xFFFFC24B.toInt(), // amber
+    0xFF4BE0A0.toInt(), // green
+    0xFF6FA8F0.toInt(), // blue
+    0xFFFFFFFF.toInt(), // white
+    0xFF16171C.toInt(), // near-black
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,6 +171,46 @@ private fun SettingsScreen(app: SnipApplication) {
             if (settings.responseMode == ResponseMode.OWN_API) {
                 SettingsSection(title = "API 설정") {
                     ApiSettingsSection(app, settings)
+                }
+            }
+
+            SettingsSection(title = "캡처 화면") {
+                Text("기본 선택 방식", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    SegmentChip(
+                        label = "사각형",
+                        selected = settings.defaultSelectionMode == SelectionMode.RECTANGLE,
+                        onClick = { scope.launch { app.settingsRepository.setDefaultSelectionMode(SelectionMode.RECTANGLE) } },
+                        modifier = Modifier.weight(1f),
+                    )
+                    SegmentChip(
+                        label = "펜",
+                        selected = settings.defaultSelectionMode == SelectionMode.PEN,
+                        onClick = { scope.launch { app.settingsRepository.setDefaultSelectionMode(SelectionMode.PEN) } },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                Text("그림 도구 색상", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AnnotationColorPresets.forEach { presetArgb ->
+                        val selected = settings.annotationColor == presetArgb
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color(presetArgb))
+                                .border(
+                                    BorderStroke(if (selected) 2.5.dp else 1.dp, if (selected) Color.White else CardBorder),
+                                    CircleShape,
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { scope.launch { app.settingsRepository.setAnnotationColor(presetArgb) } },
+                                ),
+                        )
+                    }
                 }
             }
 

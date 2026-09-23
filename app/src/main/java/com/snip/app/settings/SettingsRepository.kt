@@ -3,9 +3,11 @@ package com.snip.app.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.snip.app.ai.AiProvider
+import com.snip.app.capture.SelectionMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -23,6 +25,8 @@ data class SnipSettings(
     val defaultNativeTargetPackage: String? = null,
     val activeProvider: AiProvider = AiProvider.ANTHROPIC,
     val modelByProvider: Map<AiProvider, String> = AiProvider.entries.associateWith { it.defaultModel },
+    val defaultSelectionMode: SelectionMode = SelectionMode.RECTANGLE,
+    val annotationColor: Int = 0xFFFF5C5C.toInt(),
 )
 
 class SettingsRepository(context: Context) {
@@ -35,6 +39,8 @@ class SettingsRepository(context: Context) {
         val DEFAULT_PROMPT = stringPreferencesKey("default_prompt")
         val DEFAULT_NATIVE_TARGET = stringPreferencesKey("default_native_target")
         val ACTIVE_PROVIDER = stringPreferencesKey("active_provider")
+        val DEFAULT_SELECTION_MODE = stringPreferencesKey("default_selection_mode")
+        val ANNOTATION_COLOR = intPreferencesKey("annotation_color")
         fun modelKey(provider: AiProvider) = stringPreferencesKey("model_${provider.name}")
     }
 
@@ -53,6 +59,9 @@ class SettingsRepository(context: Context) {
             modelByProvider = AiProvider.entries.associateWith { provider ->
                 prefs[Keys.modelKey(provider)] ?: provider.defaultModel
             },
+            defaultSelectionMode = prefs[Keys.DEFAULT_SELECTION_MODE]?.let { runCatching { SelectionMode.valueOf(it) }.getOrNull() }
+                ?: SelectionMode.RECTANGLE,
+            annotationColor = prefs[Keys.ANNOTATION_COLOR] ?: 0xFFFF5C5C.toInt(),
         )
     }
 
@@ -65,4 +74,6 @@ class SettingsRepository(context: Context) {
     }
     suspend fun setActiveProvider(provider: AiProvider) = store.edit { it[Keys.ACTIVE_PROVIDER] = provider.name }
     suspend fun setModel(provider: AiProvider, model: String) = store.edit { it[Keys.modelKey(provider)] = model }
+    suspend fun setDefaultSelectionMode(mode: SelectionMode) = store.edit { it[Keys.DEFAULT_SELECTION_MODE] = mode.name }
+    suspend fun setAnnotationColor(color: Int) = store.edit { it[Keys.ANNOTATION_COLOR] = color }
 }

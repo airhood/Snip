@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +35,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.snip.app.dispatch.NativeTarget
@@ -86,6 +89,25 @@ fun ModeToggle(mode: SelectionMode, onModeChange: (SelectionMode) -> Unit) {
         ) {
             ModeToggleOption("사각형", selected = mode == SelectionMode.RECTANGLE) { onModeChange(SelectionMode.RECTANGLE) }
             ModeToggleOption("펜", selected = mode == SelectionMode.PEN) { onModeChange(SelectionMode.PEN) }
+        }
+    }
+}
+
+/** Round icon toggle for the freehand annotation tool — same glass/border language as
+ * everything else, lit up in [SnipGlow] while active. */
+@Composable
+fun DrawToggleButton(enabled: Boolean, onToggle: () -> Unit) {
+    SnipTheme {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(if (enabled) SnipGlow.copy(alpha = 0.35f) else Color(0xCC121218))
+                .border(BorderStroke(1.6.dp, if (enabled) SnipGlow else Color(0x33FFFFFF)), CircleShape)
+                .clickable(interactionSource = MutableInteractionSource(), indication = null, onClick = onToggle),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("✏️", fontSize = 20.sp)
         }
     }
 }

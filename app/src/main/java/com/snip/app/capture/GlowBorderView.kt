@@ -62,13 +62,13 @@ class GlowBorderView(context: Context) : FrameLayout(context) {
     private val supportsRenderNodeBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     private val bloomRenderNode: RenderNode? = if (supportsRenderNodeBlur) RenderNode("borderBloom") else null
 
-    private val bloomBaseWidth = density * 12f
+    private val bloomBaseWidth = density * 15f
     private val bloomPaint = Paint().apply {
         style = Paint.Style.FILL
         isAntiAlias = true
         if (!supportsRenderNodeBlur) setShadowLayer(density * 40f, 0f, 0f, glowColor)
     }
-    private val coreBaseWidth = density * 2.5f
+    private val coreBaseWidth = density * 3.13f
     private val corePaint = Paint().apply {
         style = Paint.Style.FILL
         isAntiAlias = true

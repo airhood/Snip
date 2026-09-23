@@ -37,6 +37,15 @@ class RegionSelectView(context: Context) : View(context) {
             clearSelection()
         }
 
+    /** Freehand markup (notes/highlights) baked into the final image, independent of region
+     * selection — drawn in a solid user-chosen color rather than the selection tools' glow. */
+    var drawModeEnabled: Boolean = false
+    var annotationColor: Int = Color.RED
+        set(value) {
+            field = value
+            annotationPaint.color = value
+        }
+
     // The raw capture, plus a pre-dimmed copy baked once in setScreenshot() rather than every
     // frame — a per-frame saveLayer()+CLEAR here was the main source of drag jank.
     private var screenshot: Bitmap? = null
@@ -98,6 +107,21 @@ class RegionSelectView(context: Context) : View(context) {
     private val supportsRenderNodeBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     private val bloomRenderNode: RenderNode? = if (supportsRenderNodeBlur) RenderNode("selectionBloom") else null
 
+    // Annotation layer: same pixel dimensions as [screenshot], drawn incrementally (persisted
+    // strokes, not a replayed Path) and composited both on-screen and into the final crop.
+    private var annotationBitmap: Bitmap? = null
+    private var annotationCanvas: Canvas? = null
+    private val annotationPaint = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        isAntiAlias = true
+        strokeWidth = resources.displayMetrics.density * 5f
+        color = Color.RED
+    }
+    private var lastAnnX = 0f
+    private var lastAnnY = 0f
+
     private var startX = 0f
     private var startY = 0f
     private var currentRect: RectF? = null
@@ -129,6 +153,9 @@ class RegionSelectView(context: Context) : View(context) {
             c.drawBitmap(bitmap, 0f, 0f, null)
             c.drawColor(Color.argb(140, 0, 0, 0))
         }
+        val annotation = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        annotationBitmap = annotation
+        annotationCanvas = Canvas(annotation)
         invalidate()
     }
 
@@ -142,6 +169,7 @@ class RegionSelectView(context: Context) : View(context) {
     val selection: RectF? get() = currentRect
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (drawModeEnabled) return handleDrawTouch(event)
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 isDragging = true
@@ -189,6 +217,44 @@ class RegionSelectView(context: Context) : View(context) {
         return true
     }
 
+    private fun toBitmapX(viewX: Float): Float {
+        val bmp = screenshot ?: return viewX
+        return viewX * (bmp.width / width.toFloat())
+    }
+
+    private fun toBitmapY(viewY: Float): Float {
+        val bmp = screenshot ?: return viewY
+        return viewY * (bmp.height / height.toFloat())
+    }
+
+    private fun handleDrawTouch(event: MotionEvent): Boolean {
+        val annCanvas = annotationCanvas ?: return true
+        val bx = toBitmapX(event.x)
+        val by = toBitmapY(event.y)
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                lastAnnX = bx
+                lastAnnY = by
+                // A dot for a tap-and-release, not nothing.
+                annCanvas.drawCircle(bx, by, annotationPaint.strokeWidth / 2f, annotationPaint)
+                invalidate()
+            }
+            MotionEvent.ACTION_MOVE -> {
+                annCanvas.drawLine(lastAnnX, lastAnnY, bx, by, annotationPaint)
+                lastAnnX = bx
+                lastAnnY = by
+                invalidate()
+            }
+        }
+        return true
+    }
+
+    /** Clears any drawn annotations (e.g. when starting over on a fresh capture). */
+    fun clearAnnotations() {
+        annotationCanvas?.drawColor(Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         val dimmed = dimmedScreenshot ?: return
         destRect.set(0, 0, width, height)
@@ -202,11 +268,15 @@ class RegionSelectView(context: Context) : View(context) {
         if (rect != null && bmp != null && !(isDragging && mode == SelectionMode.PEN)) {
             val revealAlpha = (revealProgress.coerceIn(0f, 1f) * 255).toInt()
 
+            // Pen-mode only: the box starts a bit smaller than its target size and grows into
+            // it, rather than snapping straight to full size like a rectangle drag does.
+            val drawnRect = if (mode == SelectionMode.PEN) scaledRect(rect, revealProgress) else rect
+
             // Rounded clip, matching the brackets' own corner radius — a rectClip here left the
             // sharp original corner peeking out past the rounded bracket curve.
-            val clipR = minOf(cornerRadiusPx, rect.width() / 2, rect.height() / 2)
+            val clipR = minOf(cornerRadiusPx, drawnRect.width() / 2, drawnRect.height() / 2)
             clipPath.reset()
-            clipPath.addRoundRect(rect, clipR, clipR, Path.Direction.CW)
+            clipPath.addRoundRect(drawnRect, clipR, clipR, Path.Direction.CW)
             canvas.save()
             canvas.clipPath(clipPath)
             revealPaint.alpha = revealAlpha
@@ -214,7 +284,7 @@ class RegionSelectView(context: Context) : View(context) {
             canvas.restore()
 
             // Bracket arms grow in (with a slight overshoot) rather than snapping to full size.
-            buildBracketsPath(rect, lenScale = revealProgress.coerceAtLeast(0f))
+            buildBracketsPath(drawnRect, lenScale = revealProgress.coerceAtLeast(0f))
             bloomPaint.alpha = revealAlpha
             corePaint.alpha = revealAlpha
             drawGlow(canvas, cornerPath, bloomPaint, corePaint, density * 10f)
@@ -225,6 +295,22 @@ class RegionSelectView(context: Context) : View(context) {
             penCorePaint.shader = penGradient
             drawGlow(canvas, penPath, penBloomPaint, penCorePaint, density * 12f)
         }
+
+        // Annotations always show, dimmed area or not — they're markup on the capture itself,
+        // not part of the selection UI.
+        annotationBitmap?.let { canvas.drawBitmap(it, null, destRect, null) }
+    }
+
+    /** Shrinks [rect] toward its own center by up to [minScale] at progress 0, growing to full
+     * size at progress 1 (can briefly overshoot past 1 for a little pop, since revealProgress
+     * itself overshoots). Pen-only — a rectangle drag already "grows" naturally as you drag it. */
+    private fun scaledRect(rect: RectF, progress: Float, minScale: Float = 0.82f): RectF {
+        val scale = minScale + (1f - minScale) * progress
+        val cx = rect.centerX()
+        val cy = rect.centerY()
+        val hw = rect.width() / 2f * scale
+        val hh = rect.height() / 2f * scale
+        return RectF(cx - hw, cy - hh, cx + hw, cy + hh)
     }
 
     /** Builds four independent rounded L-shaped brackets (real curved corners) into [cornerPath].
@@ -266,7 +352,9 @@ class RegionSelectView(context: Context) : View(context) {
         canvas.drawPath(path, core)
     }
 
-    /** Crops [screenshot] to [selection] mapped from view coordinates to bitmap coordinates. */
+    /** Crops [screenshot] to [selection] mapped from view coordinates to bitmap coordinates,
+     * with any annotation strokes over that region baked in — what gets sent to the AI is
+     * exactly what's on screen, markup included. */
     fun cropSelection(): Bitmap? {
         val bmp = screenshot ?: return null
         val rect = currentRect ?: return null
@@ -276,7 +364,16 @@ class RegionSelectView(context: Context) : View(context) {
         val top = (rect.top * scaleY).toInt().coerceIn(0, bmp.height - 1)
         val right = (rect.right * scaleX).toInt().coerceIn(left + 1, bmp.width)
         val bottom = (rect.bottom * scaleY).toInt().coerceIn(top + 1, bmp.height)
-        return Bitmap.createBitmap(bmp, left, top, right - left, bottom - top)
+        val cropW = right - left
+        val cropH = bottom - top
+        val srcRect = Rect(left, top, right, bottom)
+        val dstRect = Rect(0, 0, cropW, cropH)
+
+        val result = Bitmap.createBitmap(cropW, cropH, Bitmap.Config.ARGB_8888)
+        val c = Canvas(result)
+        c.drawBitmap(bmp, srcRect, dstRect, null)
+        annotationBitmap?.let { c.drawBitmap(it, srcRect, dstRect, null) }
+        return result
     }
 
     fun clearSelection() {

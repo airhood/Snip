@@ -36,6 +36,7 @@ class RegionSelectActivity : ComponentActivity() {
     private var nativeTargets by mutableStateOf<List<NativeTarget>>(emptyList())
     private var prompt by mutableStateOf("")
     private var selectionMode by mutableStateOf(SelectionMode.RECTANGLE)
+    private var drawModeEnabled by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,6 +103,25 @@ class RegionSelectActivity : ComponentActivity() {
             },
         )
 
+        val drawToggle = ComposeView(this).apply {
+            setContent {
+                DrawToggleButton(
+                    enabled = drawModeEnabled,
+                    onToggle = {
+                        drawModeEnabled = !drawModeEnabled
+                        selectView.drawModeEnabled = drawModeEnabled
+                    },
+                )
+            }
+        }
+        root.addView(
+            drawToggle,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+                setMargins(0, 0, closeMarginPx, closeMarginPx)
+            },
+        )
+
         val actionBar = ComposeView(this).apply {
             setContent {
                 CaptureActionBar(visible = actionBarVisible) {
@@ -139,6 +159,9 @@ class RegionSelectActivity : ComponentActivity() {
             if (settings.responseMode == ResponseMode.NATIVE_APP_INTENT) {
                 nativeTargets = NativeAppShare.installedTargets(this@RegionSelectActivity)
             }
+            selectionMode = settings.defaultSelectionMode
+            selectView.mode = settings.defaultSelectionMode
+            selectView.annotationColor = settings.annotationColor
         }
     }
 
