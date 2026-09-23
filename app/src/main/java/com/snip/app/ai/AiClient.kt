@@ -2,11 +2,42 @@ package com.snip.app.ai
 
 import kotlinx.coroutines.flow.Flow
 
-enum class AiProvider(val label: String, val defaultModel: String) {
-    ANTHROPIC("Claude", "claude-sonnet-5"),
-    OPENAI("ChatGPT", "gpt-5.1"),
-    GEMINI("Gemini", "gemini-2.5-flash"),
-    OPENROUTER("OpenRouter", "anthropic/claude-sonnet-5"),
+enum class AiProvider(val label: String, val defaultModel: String, val presetModels: List<String>) {
+    ANTHROPIC(
+        "Claude",
+        "claude-sonnet-5",
+        listOf(
+            "claude-opus-5",
+            "claude-sonnet-5",
+            "claude-fable-5-1",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+        ),
+    ),
+    OPENAI(
+        "ChatGPT",
+        "gpt-6-astra",
+        listOf("gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"),
+    ),
+    GEMINI(
+        "Gemini",
+        "gemini-3.8-flash",
+        listOf("gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro", "gemini-2.5-flash"),
+    ),
+    OPENROUTER(
+        "OpenRouter",
+        "anthropic/claude-sonnet-5",
+        listOf(
+            "anthropic/claude-opus-5",
+            "anthropic/claude-sonnet-5",
+            "anthropic/claude-fable-5-1",
+            "openai/gpt-6-astra",
+            "openai/gpt-5.6-sol",
+            "openai/gpt-5.6-luna",
+            "google/gemini-3.8-flash",
+            "google/gemini-3.1-pro",
+        ),
+    ),
 }
 
 /** One image, base64-encoded, no data: prefix. */

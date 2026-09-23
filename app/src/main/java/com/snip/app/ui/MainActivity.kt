@@ -35,12 +35,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -348,6 +351,66 @@ private fun SnipTextField(
     )
 }
 
+/** Free text entry (any model string works) plus a dropdown of a few current presets per
+ * provider — picking one just fills the field, it doesn't lock out typing something else. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModelField(provider: com.snip.app.ai.AiProvider, value: String, onValueChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    // Starts read-only (tapping just opens the preset list, no keyboard). Only picking
+    // "기타" below switches to a real editable field and pulls up the keyboard.
+    var customMode by remember(provider) { mutableStateOf(value.isNotEmpty() && value !in provider.presetModels) }
+    val focusRequester = remember { FocusRequester() }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (!customMode) expanded = it },
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            readOnly = !customMode,
+            label = { Text("모델", color = TextMuted) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor().focusRequester(focusRequester),
+            shape = RoundedCornerShape(10.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color(0x14FFFFFF),
+                unfocusedContainerColor = Color(0x0AFFFFFF),
+                focusedBorderColor = SnipBlue,
+                unfocusedBorderColor = CardBorder,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = SnipBlue,
+            ),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            provider.presetModels.forEach { preset ->
+                DropdownMenuItem(
+                    text = { Text(preset) },
+                    onClick = {
+                        expanded = false
+                        customMode = false
+                        onValueChange(preset)
+                    },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("기타 (직접 입력)", color = TextMuted) },
+                onClick = {
+                    expanded = false
+                    customMode = true
+                    onValueChange("")
+                },
+            )
+        }
+    }
+
+    LaunchedEffect(customMode) {
+        if (customMode) focusRequester.requestFocus()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ApiSettingsSection(app: SnipApplication, settings: SnipSettings) {
@@ -389,10 +452,14 @@ private fun ApiSettingsSection(app: SnipApplication, settings: SnipSettings) {
     var apiKeyText by remember(provider) { mutableStateOf(app.apiKeyStore.getKey(provider) ?: "") }
     var modelText by remember(provider) { mutableStateOf(settings.modelByProvider[provider] ?: provider.defaultModel) }
 
-    SnipTextField(value = modelText, onValueChange = {
-        modelText = it
-        scope.launch { app.settingsRepository.setModel(provider, it) }
-    }, placeholder = "모델")
+    ModelField(
+        provider = provider,
+        value = modelText,
+        onValueChange = {
+            modelText = it
+            scope.launch { app.settingsRepository.setModel(provider, it) }
+        },
+    )
 
     SnipTextField(
         value = apiKeyText,
