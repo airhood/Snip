@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Snip</string>
+    <string name="accessibility_service_description">화면 가장자리 스와이프로 영역을 캡처해 AI에게 물어볼 수 있게 해줍니다.</string>
+</resources>

@@ -1,0 +1,5 @@
+<voice-interaction-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.snip.app.assistant.SnipVoiceInteractionSessionService"
+    android:recognitionService="com.snip.app.assistant.SnipRecognitionServiceStub"
+    android:supportsAssist="true" />

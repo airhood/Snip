@@ -1,0 +1,7 @@
+<resources>
+    <color name="snip_primary">#456588</color>
+    <color name="snip_accent">#93BFF5</color>
+    <color name="snip_on_primary">#FFFFFF</color>
+    <color name="snip_icon_bg">#EFF6FD</color>
+    <color name="overlay_dim">#66000000</color>
+</resources>
