@@ -184,8 +184,8 @@ private fun GlowPillButton(label: String, onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .clip(shape)
-                .background(Color.Black.copy(alpha = 0.08f))
-                .background(SnipGlow.copy(alpha = 0.07f))
+                .background(Color.Black.copy(alpha = 0.45f))
+                .background(SnipGlow.copy(alpha = 0.12f))
                 .border(
                     BorderStroke(
                         1.6.dp,
