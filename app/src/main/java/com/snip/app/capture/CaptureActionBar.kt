@@ -162,8 +162,13 @@ private fun GlowPillButton(label: String, onClick: () -> Unit) {
                             // "square" the border/brackets never had, because those record into
                             // the whole screen-sized view with plenty of margin around the
                             // stroke. Here we manufacture that margin explicitly.
-                            val blurRadius = size.height * 0.9f
-                            val margin = blurRadius * 1.6f
+                            //
+                            // Kept deliberately smaller than size.height-scaled: buttons sit only
+                            // 12.dp apart, and a wide bloom reaches the next pill's own box, which
+                            // draws on top of it (later in the row) and visually "cuts" the glow
+                            // right at that neighbor's edge.
+                            val blurRadius = 14.dp.toPx()
+                            val margin = blurRadius * 1.3f
                             node.setPosition(-margin.toInt(), -margin.toInt(), (size.width + margin).toInt(), (size.height + margin).toInt())
                             val nodeCanvas = node.beginRecording()
                             val paint = AndroidPaint().apply { color = glowArgb; isAntiAlias = true }
