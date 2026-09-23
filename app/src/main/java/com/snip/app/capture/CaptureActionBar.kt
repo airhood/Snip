@@ -171,7 +171,10 @@ private fun GlowPillButton(label: String, onClick: () -> Unit) {
                             val margin = blurRadius * 1.3f
                             node.setPosition(-margin.toInt(), -margin.toInt(), (size.width + margin).toInt(), (size.height + margin).toInt())
                             val nodeCanvas = node.beginRecording()
-                            val paint = AndroidPaint().apply { color = glowArgb; isAntiAlias = true }
+                            // Lighter at the source, not just masked on top afterward — the fill
+                            // Box sits directly over this same region, so its own tint alpha can
+                            // only do so much against a full-strength blur showing through it.
+                            val paint = AndroidPaint().apply { color = glowArgb; alpha = 130; isAntiAlias = true }
                             val r = size.height / 2f
                             nodeCanvas.drawRoundRect(margin, margin, margin + size.width, margin + size.height, r, r, paint)
                             node.endRecording()
@@ -185,7 +188,7 @@ private fun GlowPillButton(label: String, onClick: () -> Unit) {
             modifier = Modifier
                 .clip(shape)
                 .background(Color.Black.copy(alpha = 0.16f))
-                .background(SnipGlow.copy(alpha = 0.40f))
+                .background(SnipGlow.copy(alpha = 0.14f))
                 .border(
                     BorderStroke(
                         1.6.dp,
