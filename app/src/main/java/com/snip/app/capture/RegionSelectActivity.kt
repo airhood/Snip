@@ -31,7 +31,8 @@ class RegionSelectActivity : ComponentActivity() {
 
     private lateinit var selectView: RegionSelectView
 
-    private var actionBarVisible by mutableStateOf(false)
+    // Visible by default — no selection means "send the whole screen", not "nothing to do yet".
+    private var actionBarVisible by mutableStateOf(true)
     private var responseMode by mutableStateOf<ResponseMode?>(null)
     private var nativeTargets by mutableStateOf<List<NativeTarget>>(emptyList())
     private var prompt by mutableStateOf("")
@@ -149,7 +150,11 @@ class RegionSelectActivity : ComponentActivity() {
 
         setContentView(root)
 
-        selectView.onSelectionChanged = { rect -> actionBarVisible = rect != null }
+        // Hide only while actively dragging out a new selection (it would otherwise sit over
+        // the bottom of the screen and eat the touches needed to draw there); reappears
+        // regardless of whether that drag produced a selection, since "none" now just means
+        // "send the whole screen".
+        selectView.onDragStateChanged = { dragging -> actionBarVisible = !dragging }
 
         lifecycleScope.launch {
             val app = application as SnipApplication

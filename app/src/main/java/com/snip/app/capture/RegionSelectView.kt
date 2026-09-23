@@ -30,6 +30,11 @@ class RegionSelectView(context: Context) : View(context) {
 
     var onSelectionChanged: (RectF?) -> Unit = {}
 
+    /** Fires on ACTION_DOWN/UP of a selection drag — separate from [onSelectionChanged] because
+     * "no rect yet" (still dragging) and "no rect, period" (nothing selected, send the whole
+     * screen) need different UI reactions: the action bar should hide only for the former. */
+    var onDragStateChanged: (Boolean) -> Unit = {}
+
     var mode: SelectionMode = SelectionMode.RECTANGLE
         set(value) {
             if (field == value) return
@@ -173,6 +178,7 @@ class RegionSelectView(context: Context) : View(context) {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 isDragging = true
+                onDragStateChanged(true)
                 startX = event.x
                 startY = event.y
                 currentRect = RectF(startX, startY, startX, startY)
@@ -214,6 +220,7 @@ class RegionSelectView(context: Context) : View(context) {
                     currentRect = null
                     onSelectionChanged(null)
                 }
+                onDragStateChanged(false)
                 invalidate()
             }
         }
@@ -260,11 +267,19 @@ class RegionSelectView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         val dimmed = dimmedScreenshot ?: return
+        val bmp = screenshot
         destRect.set(0, 0, width, height)
-        canvas.drawBitmap(dimmed, null, destRect, null)
+
+        // Nothing selected and not mid-drag: the whole screen is what will be sent, so show it
+        // at full brightness instead of permanently dimmed — a dimmed screen with no highlighted
+        // region reads as "nothing is selected yet", which is no longer true by default.
+        if (currentRect == null && !isDragging && bmp != null) {
+            canvas.drawBitmap(bmp, null, destRect, null)
+        } else {
+            canvas.drawBitmap(dimmed, null, destRect, null)
+        }
 
         val rect = currentRect
-        val bmp = screenshot
         // While actively drawing in pen mode, only the stroke itself shows (no box preview yet)
         // — the box appears once the stroke's bounding box is finalized on release, at which
         // point it renders identically to a rectangle-drag selection.
@@ -357,10 +372,11 @@ class RegionSelectView(context: Context) : View(context) {
 
     /** Crops [screenshot] to [selection] mapped from view coordinates to bitmap coordinates,
      * with any annotation strokes over that region baked in — what gets sent to the AI is
-     * exactly what's on screen, markup included. */
+     * exactly what's on screen, markup included. With nothing selected, this is the whole
+     * screenshot (also with annotations baked in) rather than null. */
     fun cropSelection(): Bitmap? {
         val bmp = screenshot ?: return null
-        val rect = currentRect ?: return null
+        val rect = currentRect ?: return fullScreenshotWithAnnotations(bmp)
         val scaleX = bmp.width / width.toFloat()
         val scaleY = bmp.height / height.toFloat()
         val left = (rect.left * scaleX).toInt().coerceIn(0, bmp.width - 1)
@@ -376,6 +392,14 @@ class RegionSelectView(context: Context) : View(context) {
         val c = Canvas(result)
         c.drawBitmap(bmp, srcRect, dstRect, null)
         annotationBitmap?.let { c.drawBitmap(it, srcRect, dstRect, null) }
+        return result
+    }
+
+    private fun fullScreenshotWithAnnotations(bmp: Bitmap): Bitmap {
+        val result = Bitmap.createBitmap(bmp.width, bmp.height, Bitmap.Config.ARGB_8888)
+        val c = Canvas(result)
+        c.drawBitmap(bmp, 0f, 0f, null)
+        annotationBitmap?.let { c.drawBitmap(it, 0f, 0f, null) }
         return result
     }
 
