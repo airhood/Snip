@@ -78,7 +78,7 @@ class RegionSelectView(context: Context) : View(context) {
     // and wide, since "brighter" was the explicit ask.
     private val penBloomPaint = Paint().apply {
         style = Paint.Style.STROKE
-        strokeWidth = density * 22f
+        strokeWidth = density * 16.5f
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         isAntiAlias = true
@@ -87,7 +87,7 @@ class RegionSelectView(context: Context) : View(context) {
     private val penCorePaint = Paint().apply {
         color = Color.WHITE
         style = Paint.Style.STROKE
-        strokeWidth = density * 5f
+        strokeWidth = density * 3.75f
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         isAntiAlias = true
@@ -223,7 +223,7 @@ class RegionSelectView(context: Context) : View(context) {
         if (isDragging && mode == SelectionMode.PEN && !penPath.isEmpty) {
             penBloomPaint.shader = penGradient
             penCorePaint.shader = penGradient
-            drawGlow(canvas, penPath, penBloomPaint, penCorePaint, density * 16f)
+            drawGlow(canvas, penPath, penBloomPaint, penCorePaint, density * 12f)
         }
     }
 
