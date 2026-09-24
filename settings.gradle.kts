@@ -10,6 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // jlatexmath-android (LaTeX rendering for Markwon) is only published here.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

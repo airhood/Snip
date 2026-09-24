@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -136,16 +137,28 @@ private fun ChatScreen(viewModel: ChatViewModel) {
     }
 }
 
+// User turns stay a right-aligned bubble (there's no reason to change how your own messages
+// look). Assistant turns are the actual "answer" — other AI apps (Claude, ChatGPT) render that
+// as plain full-width text with no bounding box, not a chat bubble, so match that instead of
+// making replies look like a messenger conversation.
 @Composable
 private fun MessageBubble(role: ChatRole, text: String) {
-    val alignment = if (role == ChatRole.USER) Alignment.CenterEnd else Alignment.CenterStart
-    Box(Modifier.fillMaxWidth()) {
-        Card(
-            modifier = Modifier
-                .align(alignment)
-                .padding(4.dp),
-        ) {
-            Text(text, Modifier.padding(12.dp))
+    val textColor = MaterialTheme.colorScheme.onSurface
+    if (role == ChatRole.USER) {
+        Box(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(4.dp),
+            ) {
+                MarkdownText(text, color = textColor, modifier = Modifier.padding(12.dp))
+            }
         }
+    } else {
+        MarkdownText(
+            text,
+            color = textColor,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        )
     }
 }
