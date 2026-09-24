@@ -19,6 +19,9 @@ interface ConversationDao {
 
     @Query("SELECT * FROM conversations WHERE id = :id")
     suspend fun getById(id: Long): ConversationEntity?
+
+    @Query("DELETE FROM conversations WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }
 
 @Dao
@@ -31,4 +34,7 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC")
     suspend fun getForConversation(conversationId: Long): List<MessageEntity>
+
+    @Query("DELETE FROM messages WHERE conversationId = :conversationId")
+    suspend fun deleteForConversation(conversationId: Long)
 }

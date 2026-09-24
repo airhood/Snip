@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -34,6 +35,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -510,6 +512,8 @@ private fun ChatHistorySection(app: SnipApplication) {
     val conversations by app.database.conversationDao().observeAll()
         .collectAsState(initial = emptyList())
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pendingDelete by remember { mutableStateOf<ConversationEntity?>(null) }
 
     if (conversations.isEmpty()) {
         Text("아직 대화가 없어요", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
@@ -518,16 +522,39 @@ private fun ChatHistorySection(app: SnipApplication) {
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         conversations.forEach { conversation ->
-            ChatHistoryRow(conversation) {
-                ChatActivity.openExisting(context, conversation.id)
-            }
+            ChatHistoryRow(
+                conversation = conversation,
+                onClick = { ChatActivity.openExisting(context, conversation.id) },
+                onDeleteClick = { pendingDelete = conversation },
+            )
         }
+    }
+
+    val toDelete = pendingDelete
+    if (toDelete != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("대화 삭제") },
+            text = { Text("\"${toDelete.title}\" 대화를 삭제할까요? 되돌릴 수 없어요.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        app.database.messageDao().deleteForConversation(toDelete.id)
+                        app.database.conversationDao().deleteById(toDelete.id)
+                    }
+                    pendingDelete = null
+                }) { Text("삭제") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("취소") }
+            },
+        )
     }
 }
 
 @Composable
-private fun ChatHistoryRow(conversation: ConversationEntity, onClick: () -> Unit) {
-    Column(
+private fun ChatHistoryRow(conversation: ConversationEntity, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
@@ -535,14 +562,24 @@ private fun ChatHistoryRow(conversation: ConversationEntity, onClick: () -> Unit
             .border(BorderStroke(1.dp, CardBorder), RoundedCornerShape(10.dp))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        val providerLabel = runCatching { AiProvider.valueOf(conversation.provider).label }.getOrDefault(conversation.provider)
-        Text(conversation.title, color = Color.White, fontWeight = FontWeight.Medium)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            val providerLabel = runCatching { AiProvider.valueOf(conversation.provider).label }.getOrDefault(conversation.provider)
+            Text(conversation.title, color = Color.White, fontWeight = FontWeight.Medium)
+            Text(
+                "$providerLabel · ${conversation.model} · ${historyDateFormat.format(conversation.updatedAt)}",
+                color = TextMuted,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
         Text(
-            "$providerLabel · ${conversation.model} · ${historyDateFormat.format(conversation.updatedAt)}",
-            color = TextMuted,
-            style = MaterialTheme.typography.labelSmall,
+            "삭제",
+            color = Color(0xFFEF9A9A),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDeleteClick)
+                .padding(8.dp),
         )
     }
 }
