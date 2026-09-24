@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -49,6 +50,8 @@ class ChatActivity : ComponentActivity() {
 
         if (imagePath != null) {
             viewModel.start(imagePath, prompt, conversationId)
+        } else if (conversationId != null) {
+            viewModel.open(conversationId)
         }
 
         setContent {
@@ -65,9 +68,18 @@ class ChatActivity : ComponentActivity() {
 
         fun start(context: Context, imagePath: String, prompt: String, conversationId: Long?) {
             val intent = Intent(context, ChatActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 .putExtra(EXTRA_IMAGE_PATH, imagePath)
                 .putExtra(EXTRA_PROMPT, prompt)
             if (conversationId != null) intent.putExtra(EXTRA_CONVERSATION_ID, conversationId)
+            context.startActivity(intent)
+        }
+
+        /** Opens an existing conversation to view/continue it, with no new capture. */
+        fun openExisting(context: Context, conversationId: Long) {
+            val intent = Intent(context, ChatActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(EXTRA_CONVERSATION_ID, conversationId)
             context.startActivity(intent)
         }
     }
@@ -109,10 +121,16 @@ private fun ChatScreen(viewModel: ChatViewModel) {
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("추가 질문...") },
                 )
-                Button(onClick = {
-                    viewModel.sendFollowUp(followUp)
-                    followUp = ""
-                }) { Text("보내기") }
+                Button(
+                    onClick = {
+                        viewModel.sendFollowUp(followUp)
+                        followUp = ""
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = androidx.compose.ui.graphics.Color(0xFF3A3D46),
+                        contentColor = androidx.compose.ui.graphics.Color.White,
+                    ),
+                ) { Text("보내기") }
             }
         }
     }

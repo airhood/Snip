@@ -55,6 +55,21 @@ class ChatViewModel(private val app: SnipApplication) : ViewModel() {
         }
     }
 
+    /** Loads an existing conversation to view/continue it — no new capture involved. */
+    fun open(existingConversationId: Long) {
+        viewModelScope.launch {
+            val conversation = app.database.conversationDao().getById(existingConversationId) ?: return@launch
+            val provider = runCatching { AiProvider.valueOf(conversation.provider) }.getOrDefault(AiProvider.ANTHROPIC)
+            conversationId = existingConversationId
+            _state.value = _state.value.copy(
+                provider = provider,
+                model = conversation.model,
+                messages = loadHistory(existingConversationId),
+                missingApiKey = !app.apiKeyStore.hasKey(provider),
+            )
+        }
+    }
+
     fun sendFollowUp(text: String) {
         if (text.isBlank()) return
         sendUserTurn(text = text, imagePath = null)
@@ -66,8 +81,10 @@ class ChatViewModel(private val app: SnipApplication) : ViewModel() {
             val provider = _state.value.provider
             val model = _state.value.model
             val apiKey = app.apiKeyStore.getKey(provider) ?: return@launch
+            val isFirstMessage = _state.value.messages.isEmpty()
 
             persistMessage(cid, ChatRole.USER, text, imagePath)
+            touchConversation(cid, newTitle = if (isFirstMessage) text.take(40) else null)
             _state.value = _state.value.copy(
                 messages = _state.value.messages + DisplayMessage(ChatRole.USER, text, imagePath),
                 isStreaming = true,
@@ -132,6 +149,18 @@ class ChatViewModel(private val app: SnipApplication) : ViewModel() {
                 updatedAt = System.currentTimeMillis(),
             ),
         )
+
+    /** updatedAt only got set once at creation, so the history list never re-sorted by
+     * actual last activity — every follow-up needs to bump it, not just the first message. */
+    private suspend fun touchConversation(conversationId: Long, newTitle: String?) {
+        val existing = app.database.conversationDao().getById(conversationId) ?: return
+        app.database.conversationDao().update(
+            existing.copy(
+                title = newTitle?.takeIf { it.isNotBlank() } ?: existing.title,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
 
     private suspend fun persistMessage(conversationId: Long, role: ChatRole, text: String, imagePath: String?) {
         app.database.messageDao().insert(

@@ -59,8 +59,12 @@ import com.snip.app.settings.ActivationMode
 import com.snip.app.settings.EdgeSide
 import com.snip.app.settings.ResponseMode
 import com.snip.app.settings.SnipSettings
+import com.snip.app.ui.chat.ChatActivity
 import com.snip.app.ui.theme.SnipTheme
+import com.snip.app.data.db.ConversationEntity
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 // Shared palette — same language as the capture screen's glow (blue) and glass panels.
 private val SnipBlue = Color(0xFF6FA8F0)
@@ -215,6 +219,10 @@ private fun SettingsScreen(app: SnipApplication) {
                         )
                     }
                 }
+            }
+
+            SettingsSection(title = "채팅 기록") {
+                ChatHistorySection(app)
             }
 
             SettingsSection(title = "기본 프롬프트") {
@@ -470,4 +478,50 @@ private fun ApiSettingsSection(app: SnipApplication, settings: SnipSettings) {
         placeholder = "${provider.label} API 키",
         isPassword = true,
     )
+}
+
+private val historyDateFormat = SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
+
+/** Past conversations from the "자체 API 연동" chat, newest activity first. Tapping one
+ * reopens it in ChatActivity to keep reading or send a follow-up — no new capture involved. */
+@Composable
+private fun ChatHistorySection(app: SnipApplication) {
+    val conversations by app.database.conversationDao().observeAll()
+        .collectAsState(initial = emptyList())
+    val context = LocalContext.current
+
+    if (conversations.isEmpty()) {
+        Text("아직 대화가 없어요", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        conversations.forEach { conversation ->
+            ChatHistoryRow(conversation) {
+                ChatActivity.openExisting(context, conversation.id)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatHistoryRow(conversation: ConversationEntity, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0x0AFFFFFF))
+            .border(BorderStroke(1.dp, CardBorder), RoundedCornerShape(10.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        val providerLabel = runCatching { AiProvider.valueOf(conversation.provider).label }.getOrDefault(conversation.provider)
+        Text(conversation.title, color = Color.White, fontWeight = FontWeight.Medium)
+        Text(
+            "$providerLabel · ${conversation.model} · ${historyDateFormat.format(conversation.updatedAt)}",
+            color = TextMuted,
+            style = MaterialTheme.typography.labelSmall,
+        )
+    }
 }
