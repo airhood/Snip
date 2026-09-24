@@ -56,6 +56,7 @@ import com.snip.app.SnipApplication
 import com.snip.app.ai.AiProvider
 import com.snip.app.capture.SelectionMode
 import com.snip.app.settings.ActivationMode
+import com.snip.app.settings.EdgePosition
 import com.snip.app.settings.EdgeSide
 import com.snip.app.settings.ResponseMode
 import com.snip.app.settings.SnipSettings
@@ -149,6 +150,26 @@ private fun SettingsScreen(app: SnipApplication) {
                             label = "오른쪽",
                             selected = settings.edgeSide == EdgeSide.RIGHT,
                             onClick = { scope.launch { app.settingsRepository.setEdgeSide(EdgeSide.RIGHT) } },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        SegmentChip(
+                            label = "상단",
+                            selected = settings.edgePosition == EdgePosition.TOP,
+                            onClick = { scope.launch { app.settingsRepository.setEdgePosition(EdgePosition.TOP) } },
+                            modifier = Modifier.weight(1f),
+                        )
+                        SegmentChip(
+                            label = "가운데",
+                            selected = settings.edgePosition == EdgePosition.CENTER,
+                            onClick = { scope.launch { app.settingsRepository.setEdgePosition(EdgePosition.CENTER) } },
+                            modifier = Modifier.weight(1f),
+                        )
+                        SegmentChip(
+                            label = "하단",
+                            selected = settings.edgePosition == EdgePosition.BOTTOM,
+                            onClick = { scope.launch { app.settingsRepository.setEdgePosition(EdgePosition.BOTTOM) } },
                             modifier = Modifier.weight(1f),
                         )
                     }

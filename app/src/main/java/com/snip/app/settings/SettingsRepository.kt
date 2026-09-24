@@ -16,11 +16,13 @@ private val Context.dataStore by preferencesDataStore(name = "snip_settings")
 enum class ActivationMode { ASSISTANT_ROLE, EDGE_SWIPE }
 enum class ResponseMode { NATIVE_APP_INTENT, OWN_API }
 enum class EdgeSide { LEFT, RIGHT }
+enum class EdgePosition { TOP, CENTER, BOTTOM }
 
 data class SnipSettings(
     val activationMode: ActivationMode = ActivationMode.EDGE_SWIPE,
     val responseMode: ResponseMode = ResponseMode.NATIVE_APP_INTENT,
     val edgeSide: EdgeSide = EdgeSide.RIGHT,
+    val edgePosition: EdgePosition = EdgePosition.CENTER,
     val defaultPrompt: String = "",
     val defaultNativeTargetPackage: String? = null,
     val activeProvider: AiProvider = AiProvider.ANTHROPIC,
@@ -36,6 +38,7 @@ class SettingsRepository(context: Context) {
         val ACTIVATION_MODE = stringPreferencesKey("activation_mode")
         val RESPONSE_MODE = stringPreferencesKey("response_mode")
         val EDGE_SIDE = stringPreferencesKey("edge_side")
+        val EDGE_POSITION = stringPreferencesKey("edge_position")
         val DEFAULT_PROMPT = stringPreferencesKey("default_prompt")
         val DEFAULT_NATIVE_TARGET = stringPreferencesKey("default_native_target")
         val ACTIVE_PROVIDER = stringPreferencesKey("active_provider")
@@ -52,6 +55,8 @@ class SettingsRepository(context: Context) {
                 ?: ResponseMode.NATIVE_APP_INTENT,
             edgeSide = prefs[Keys.EDGE_SIDE]?.let { runCatching { EdgeSide.valueOf(it) }.getOrNull() }
                 ?: EdgeSide.RIGHT,
+            edgePosition = prefs[Keys.EDGE_POSITION]?.let { runCatching { EdgePosition.valueOf(it) }.getOrNull() }
+                ?: EdgePosition.CENTER,
             defaultPrompt = prefs[Keys.DEFAULT_PROMPT] ?: "",
             defaultNativeTargetPackage = prefs[Keys.DEFAULT_NATIVE_TARGET],
             activeProvider = prefs[Keys.ACTIVE_PROVIDER]?.let { runCatching { AiProvider.valueOf(it) }.getOrNull() }
@@ -68,6 +73,7 @@ class SettingsRepository(context: Context) {
     suspend fun setActivationMode(mode: ActivationMode) = store.edit { it[Keys.ACTIVATION_MODE] = mode.name }
     suspend fun setResponseMode(mode: ResponseMode) = store.edit { it[Keys.RESPONSE_MODE] = mode.name }
     suspend fun setEdgeSide(side: EdgeSide) = store.edit { it[Keys.EDGE_SIDE] = side.name }
+    suspend fun setEdgePosition(position: EdgePosition) = store.edit { it[Keys.EDGE_POSITION] = position.name }
     suspend fun setDefaultPrompt(prompt: String) = store.edit { it[Keys.DEFAULT_PROMPT] = prompt }
     suspend fun setDefaultNativeTarget(pkg: String?) = store.edit {
         if (pkg == null) it.remove(Keys.DEFAULT_NATIVE_TARGET) else it[Keys.DEFAULT_NATIVE_TARGET] = pkg
