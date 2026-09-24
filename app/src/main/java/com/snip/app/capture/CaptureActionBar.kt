@@ -283,7 +283,10 @@ fun PromptComposer(
             cursorColor = Color(0xFF93BFF5),
         ),
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(
+        modifier = Modifier.padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         GlowPillButton(label = "이어서 보내기", onClick = onSendContinue)
         GlowPillButton(label = "새 채팅으로 보내기", onClick = onSendNew)
     }

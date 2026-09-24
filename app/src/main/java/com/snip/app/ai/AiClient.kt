@@ -17,7 +17,7 @@ enum class AiProvider(val label: String, val defaultModel: String, val presetMod
     OPENAI(
         "ChatGPT",
         "gpt-6-astra",
-        listOf("gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"),
+        listOf("gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra"),
     ),
     GEMINI(
         "Gemini",
@@ -32,8 +32,8 @@ enum class AiProvider(val label: String, val defaultModel: String, val presetMod
             "anthropic/claude-sonnet-5",
             "anthropic/claude-fable-5-1",
             "openai/gpt-6-astra",
-            "openai/gpt-5.6-sol",
-            "openai/gpt-5.6-luna",
+            "openai/gpt-6-sol",
+            "openai/gpt-6-luna",
             "google/gemini-3.8-flash",
             "google/gemini-3.1-pro",
         ),
