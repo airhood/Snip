@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -96,39 +97,104 @@ class MainActivity : ComponentActivity() {
         setContent {
             SnipTheme {
                 Surface(color = SurfaceDark, modifier = Modifier.fillMaxSize()) {
-                    SettingsScreen(app)
+                    MainScreen(app)
                 }
             }
         }
     }
 }
 
+private enum class MainTab { SETTINGS, HISTORY }
+
+/** Settings and chat history used to share one long scrolling screen — history buried under
+ * everything else, and switching between "configure" and "read past answers" meant scrolling
+ * back and forth. Split into two tabs instead. */
 @Composable
-private fun SettingsScreen(app: SnipApplication) {
+private fun MainScreen(app: SnipApplication) {
+    var selectedTab by remember { mutableStateOf(MainTab.SETTINGS) }
+
+    Scaffold(
+        containerColor = SurfaceDark,
+        bottomBar = { MainTabBar(selected = selectedTab, onSelect = { selectedTab = it }) },
+    ) { padding ->
+        when (selectedTab) {
+            MainTab.SETTINGS -> SettingsTabContent(app, Modifier.padding(padding))
+            MainTab.HISTORY -> ChatHistoryTabContent(app, Modifier.padding(padding))
+        }
+    }
+}
+
+@Composable
+private fun MainTabBar(selected: MainTab, onSelect: (MainTab) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardDark)
+            .border(BorderStroke(1.dp, CardBorder))
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        MainTabItem("채팅 기록", selected == MainTab.HISTORY, Modifier.weight(1f)) { onSelect(MainTab.HISTORY) }
+        MainTabItem("설정", selected == MainTab.SETTINGS, Modifier.weight(1f)) { onSelect(MainTab.SETTINGS) }
+    }
+}
+
+@Composable
+private fun MainTabItem(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) SnipBlue.copy(alpha = 0.16f) else Color.Transparent)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = if (selected) SnipBlue else TextMuted, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+    }
+}
+
+@Composable
+private fun ChatHistoryTabContent(app: SnipApplication, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("채팅 기록", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("자체 API로 나눈 대화를 이어서 보거나 지울 수 있어요", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+        }
+        ChatHistorySection(app)
+    }
+}
+
+@Composable
+private fun SettingsTabContent(app: SnipApplication, modifier: Modifier = Modifier) {
     val settings by app.settingsRepository.settings.collectAsState(initial = SnipSettings())
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    Scaffold(containerColor = SurfaceDark) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                // Text fields otherwise stay focused (outline lit, keyboard up) forever once
-                // tapped — tapping blank space elsewhere on the screen is the expected way out,
-                // but nothing was clearing focus for taps that don't land on another field.
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    })
-                }
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            // Text fields otherwise stay focused (outline lit, keyboard up) forever once
+            // tapped — tapping blank space elsewhere on the screen is the expected way out,
+            // but nothing was clearing focus for taps that don't land on another field.
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                })
+            }
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Snip", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
                 Text("화면을 캡처해서 AI에게 바로 물어보세요", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
@@ -259,10 +325,6 @@ private fun SettingsScreen(app: SnipApplication) {
                 }
             }
 
-            SettingsSection(title = "채팅 기록") {
-                ChatHistorySection(app)
-            }
-
             SettingsSection(title = "기본 프롬프트") {
                 SnipTextField(
                     value = settings.defaultPrompt,
@@ -272,7 +334,6 @@ private fun SettingsScreen(app: SnipApplication) {
             }
 
             Spacer(Modifier.height(8.dp))
-        }
     }
 }
 
