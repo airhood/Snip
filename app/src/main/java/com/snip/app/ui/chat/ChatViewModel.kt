@@ -70,9 +70,9 @@ class ChatViewModel(private val app: SnipApplication) : ViewModel() {
         }
     }
 
-    fun sendFollowUp(text: String) {
-        if (text.isBlank()) return
-        sendUserTurn(text = text, imagePath = null)
+    fun sendFollowUp(text: String, imagePath: String? = null) {
+        if (text.isBlank() && imagePath == null) return
+        sendUserTurn(text = text, imagePath = imagePath)
     }
 
     private fun sendUserTurn(text: String, imagePath: String?) {
