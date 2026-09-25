@@ -59,6 +59,7 @@ import com.snip.app.ai.ChatRole
 import com.snip.app.capture.CaptureStore
 import com.snip.app.ui.theme.SnipTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -125,7 +126,21 @@ private fun ChatScreen(viewModel: ChatViewModel) {
     // in view, not left scrolled wherever it happened to be.
     val totalListItems = state.messages.size + if (state.isStreaming) 1 else 0
     LaunchedEffect(totalListItems) {
-        if (totalListItems > 0) listState.animateScrollToItem(totalListItems - 1)
+        // scrollToItem(index) only aligns that item's *top* edge to the viewport — if the last
+        // message is taller than one screen (a long answer), that left its bottom still
+        // offscreen. A huge scrollOffset gets clamped to the real max scroll extent, which is
+        // the standard way to force a LazyColumn all the way to its actual end.
+        //
+        // One call still landed short here: MarkdownText's AndroidView (Markwon rendering LaTeX,
+        // tables, etc.) doesn't report its final measured height until a frame or two after
+        // first composition, so the "max scroll extent" this clamps against is momentarily too
+        // small. Scrolling again next frame, once that settles, catches the rest.
+        if (totalListItems > 0) {
+            repeat(4) {
+                listState.scrollToItem(totalListItems - 1, scrollOffset = Int.MAX_VALUE)
+                delay(80)
+            }
+        }
     }
 
     // The photo picker hands back a content:// Uri that only this launch can read; copy it into
