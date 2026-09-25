@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -116,6 +118,15 @@ private fun ChatScreen(viewModel: ChatViewModel) {
     val scope = rememberCoroutineScope()
     var followUp by remember { mutableStateOf("") }
     var pendingImagePath by remember { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState()
+
+    // Covers both cases: opening a saved conversation (messages go 0 -> N on load) and sending
+    // a new one (count ticks up again) — either way the newest content should already be
+    // in view, not left scrolled wherever it happened to be.
+    val totalListItems = state.messages.size + if (state.isStreaming) 1 else 0
+    LaunchedEffect(totalListItems) {
+        if (totalListItems > 0) listState.animateScrollToItem(totalListItems - 1)
+    }
 
     // The photo picker hands back a content:// Uri that only this launch can read; copy it into
     // our own cache immediately (same as a capture) so it survives and can be base64-encoded
@@ -142,7 +153,11 @@ private fun ChatScreen(viewModel: ChatViewModel) {
                 }
             }
 
-            LazyColumn(Modifier.fillMaxSize().weight(1f).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(
+                Modifier.fillMaxSize().weight(1f).padding(8.dp),
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 items(state.messages) { message ->
                     MessageBubble(message.role, message.text, message.imagePath)
                 }
