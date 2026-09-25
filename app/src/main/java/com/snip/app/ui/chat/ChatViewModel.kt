@@ -94,6 +94,10 @@ class ChatViewModel(private val app: SnipApplication) : ViewModel() {
             val turns = buildTurnsForRequest(cid)
             val client = aiClientFor(provider)
             val builder = StringBuilder()
+            // Every provider client fires Done twice on a normal finish — once for the
+            // explicit completion event/marker, again from the connection's onClosed — so
+            // guard against persisting (and displaying) the same reply a second time.
+            var persisted = false
             client.streamReply(apiKey, model, turns).collect { event ->
                 when (event) {
                     is StreamEvent.TextDelta -> {
@@ -105,7 +109,10 @@ class ChatViewModel(private val app: SnipApplication) : ViewModel() {
                     }
                     is StreamEvent.Done -> {
                         _state.value = _state.value.copy(isStreaming = false)
-                        if (builder.isNotEmpty()) persistMessage(cid, ChatRole.ASSISTANT, builder.toString(), null)
+                        if (!persisted && builder.isNotEmpty()) {
+                            persisted = true
+                            persistMessage(cid, ChatRole.ASSISTANT, builder.toString(), null)
+                        }
                     }
                 }
             }

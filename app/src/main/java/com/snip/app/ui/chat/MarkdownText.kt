@@ -16,15 +16,20 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import io.noties.markwon.linkify.LinkifyPlugin
 
-// Claude/GPT write LaTeX as \[ ... \] / \( ... \), not Markwon's $$ ... $$ / $ ... $ — translate
-// before handing off, since JLatexMathPlugin only recognizes the latter.
+// Claude/GPT write LaTeX as \[ ... \] (block) / \( ... \) or bare $ ... $ (inline). Markwon's
+// JLatexMathInlineProcessor — despite the name — only ever matches double `$$...$$`; a single
+// `$...$` pair is never recognized as math at all, it's just left as literal text. So every
+// style gets normalized to $$...$$ before handing off; whether it renders as block or inline
+// then depends only on whether it shares a paragraph with other text.
 private val blockLatexPattern = Regex("""\\\[(.*?)\\\]""", RegexOption.DOT_MATCHES_ALL)
-private val inlineLatexPattern = Regex("""\\\((.*?)\\\)""", RegexOption.DOT_MATCHES_ALL)
+private val parenLatexPattern = Regex("""\\\((.*?)\\\)""", RegexOption.DOT_MATCHES_ALL)
+private val singleDollarLatexPattern = Regex("""(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)""")
 
 private fun normalizeLatexDelimiters(text: String): String =
     text
         .replace(blockLatexPattern) { m -> "\$\$" + m.groupValues[1] + "\$\$" }
-        .replace(inlineLatexPattern) { m -> "\$" + m.groupValues[1] + "\$" }
+        .replace(parenLatexPattern) { m -> "\$\$" + m.groupValues[1] + "\$\$" }
+        .replace(singleDollarLatexPattern) { m -> "\$\$" + m.groupValues[1] + "\$\$" }
 
 /** AI replies are frequently Markdown (and sometimes LaTeX for math), so a plain Compose Text
  * showed raw "**bold**"/"$x^2$" syntax instead of rendering it. Markwon is TextView-based —
