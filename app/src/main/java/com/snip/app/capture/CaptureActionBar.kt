@@ -12,17 +12,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -263,6 +267,7 @@ fun PromptComposer(
     onPromptChange: (String) -> Unit,
     onSendNew: () -> Unit,
     onSendContinue: () -> Unit,
+    onContinueChatOnly: () -> Unit,
 ) {
     val fieldShape = RoundedCornerShape(20.dp)
     TextField(
@@ -287,7 +292,79 @@ fun PromptComposer(
         modifier = Modifier.padding(top = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // Sometimes there's nothing new worth capturing — just a follow-up question on an
+        // existing conversation. This skips attaching the current screen entirely instead of
+        // making that go through "이어서 보내기" (which always sends the capture along).
+        GlowPillButton(label = "이어서 채팅", onClick = onContinueChatOnly)
         GlowPillButton(label = "이어서 보내기", onClick = onSendContinue)
         GlowPillButton(label = "새 채팅으로 보내기", onClick = onSendNew)
+    }
+}
+
+/** Replaces the plain native AlertDialog.Builder list that used to pick which conversation to
+ * continue — it was the one piece of this screen still in stock Android dialog styling instead
+ * of the app's dark glass language. */
+@Composable
+fun ConversationPickerDialog(
+    conversations: List<com.snip.app.data.db.ConversationEntity>,
+    onPick: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    SnipTheme {
+        androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF14151B))
+                    .border(BorderStroke(1.dp, Color(0x1FFFFFFF)), RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    "이어서 보낼 대화 선택",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    conversations.forEach { conversation ->
+                        ConversationPickerRow(conversation, onClick = { onPick(conversation.id) })
+                    }
+                }
+                Text(
+                    "취소",
+                    color = Color(0xFF787E94),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
+                        .padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConversationPickerRow(conversation: com.snip.app.data.db.ConversationEntity, onClick: () -> Unit) {
+    val providerLabel = runCatching { com.snip.app.ai.AiProvider.valueOf(conversation.provider).label }
+        .getOrDefault(conversation.provider)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0x0AFFFFFF))
+            .border(BorderStroke(1.dp, Color(0x1FFFFFFF)), RoundedCornerShape(10.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(conversation.title, color = Color.White, fontWeight = FontWeight.Medium)
+        Text("$providerLabel · ${conversation.model}", color = Color(0xFF787E94), style = MaterialTheme.typography.labelSmall)
     }
 }

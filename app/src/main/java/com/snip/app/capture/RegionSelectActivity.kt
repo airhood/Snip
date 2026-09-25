@@ -1,12 +1,12 @@
 package com.snip.app.capture
 
-import android.app.AlertDialog
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.snip.app.SnipApplication
+import com.snip.app.data.db.ConversationEntity
 import com.snip.app.dispatch.NativeAppShare
 import com.snip.app.dispatch.NativeTarget
 import com.snip.app.settings.ResponseMode
@@ -38,6 +39,8 @@ class RegionSelectActivity : ComponentActivity() {
     private var prompt by mutableStateOf("")
     private var selectionMode by mutableStateOf(SelectionMode.RECTANGLE)
     private var drawModeEnabled by mutableStateOf(false)
+    private var conversationChoices by mutableStateOf<List<ConversationEntity>>(emptyList())
+    private var onConversationPicked by mutableStateOf<((Long) -> Unit)?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -134,7 +137,18 @@ class RegionSelectActivity : ComponentActivity() {
                             prompt = prompt,
                             onPromptChange = { prompt = it },
                             onSendNew = { sendToChat(prompt, conversationId = null) },
-                            onSendContinue = { showConversationPicker(prompt) },
+                            onSendContinue = {
+                                requestConversationPick(
+                                    onEmpty = { sendToChat(prompt, conversationId = null) },
+                                    onPick = { id -> sendToChat(prompt, conversationId = id) },
+                                )
+                            },
+                            onContinueChatOnly = {
+                                requestConversationPick { id ->
+                                    ChatActivity.openExisting(this@RegionSelectActivity, id)
+                                    finish()
+                                }
+                            },
                         )
                         null -> Unit
                     }
@@ -147,6 +161,22 @@ class RegionSelectActivity : ComponentActivity() {
                 gravity = Gravity.BOTTOM
             },
         )
+
+        val pickerOverlay = ComposeView(this).apply {
+            setContent {
+                onConversationPicked?.let { onPick ->
+                    ConversationPickerDialog(
+                        conversations = conversationChoices,
+                        onPick = { id ->
+                            onConversationPicked = null
+                            onPick(id)
+                        },
+                        onDismiss = { onConversationPicked = null },
+                    )
+                }
+            }
+        }
+        root.addView(pickerOverlay, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         setContentView(root)
 
@@ -177,21 +207,25 @@ class RegionSelectActivity : ComponentActivity() {
         finish()
     }
 
-    private fun showConversationPicker(prompt: String) {
+    /** Shared by "이어서 보내기" (attaches the capture) and "이어서 채팅" (does not) — both just
+     * need the user to pick which saved conversation to continue. [onEmpty] covers the case
+     * where there's nothing to continue: "이어서 보내기" falls back to starting a new chat with
+     * the capture, but "이어서 채팅" has no capture to fall back to, so it just says so. */
+    private fun requestConversationPick(onEmpty: () -> Unit = ::showNoConversationsToast, onPick: (Long) -> Unit) {
         lifecycleScope.launch {
             val app = application as SnipApplication
             val conversations = app.database.conversationDao().observeAll().first()
             if (conversations.isEmpty()) {
-                sendToChat(prompt, conversationId = null)
+                onEmpty()
                 return@launch
             }
-            val labels = conversations.map { it.title }.toTypedArray()
-            AlertDialog.Builder(this@RegionSelectActivity)
-                .setTitle("이어서 보낼 대화 선택")
-                .setItems(labels) { _, index -> sendToChat(prompt, conversationId = conversations[index].id) }
-                .setNegativeButton("취소", null)
-                .show()
+            conversationChoices = conversations
+            onConversationPicked = onPick
         }
+    }
+
+    private fun showNoConversationsToast() {
+        Toast.makeText(this, "이어서 보낼 대화가 없어요", Toast.LENGTH_SHORT).show()
     }
 
     private fun sendToChat(prompt: String, conversationId: Long?) {
