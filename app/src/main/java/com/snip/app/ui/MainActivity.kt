@@ -111,7 +111,7 @@ private enum class MainTab { SETTINGS, HISTORY }
  * back and forth. Split into two tabs instead. */
 @Composable
 private fun MainScreen(app: SnipApplication) {
-    var selectedTab by remember { mutableStateOf(MainTab.SETTINGS) }
+    var selectedTab by remember { mutableStateOf(MainTab.HISTORY) }
 
     Scaffold(
         containerColor = SurfaceDark,
@@ -590,6 +590,7 @@ private fun ChatHistorySection(app: SnipApplication) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var pendingDelete by remember { mutableStateOf<ConversationEntity?>(null) }
+    var pendingRename by remember { mutableStateOf<ConversationEntity?>(null) }
 
     if (conversations.isEmpty()) {
         Text("아직 대화가 없어요", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
@@ -601,6 +602,7 @@ private fun ChatHistorySection(app: SnipApplication) {
             ChatHistoryRow(
                 conversation = conversation,
                 onClick = { ChatActivity.openExisting(context, conversation.id) },
+                onRenameClick = { pendingRename = conversation },
                 onDeleteClick = { pendingDelete = conversation },
             )
         }
@@ -626,10 +628,52 @@ private fun ChatHistorySection(app: SnipApplication) {
             },
         )
     }
+
+    val toRename = pendingRename
+    if (toRename != null) {
+        var newTitle by remember(toRename.id) { mutableStateOf(toRename.title) }
+        AlertDialog(
+            onDismissRequest = { pendingRename = null },
+            title = { Text("대화 이름 변경") },
+            text = {
+                OutlinedTextField(
+                    value = newTitle,
+                    onValueChange = { newTitle = it },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color(0x14FFFFFF),
+                        unfocusedContainerColor = Color(0x0AFFFFFF),
+                        focusedBorderColor = SnipBlue,
+                        unfocusedBorderColor = CardBorder,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = SnipBlue,
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = newTitle.isNotBlank(),
+                    onClick = {
+                        scope.launch { app.database.conversationDao().updateTitle(toRename.id, newTitle.trim()) }
+                        pendingRename = null
+                    },
+                ) { Text("저장") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRename = null }) { Text("취소") }
+            },
+        )
+    }
 }
 
 @Composable
-private fun ChatHistoryRow(conversation: ConversationEntity, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+private fun ChatHistoryRow(
+    conversation: ConversationEntity,
+    onClick: () -> Unit,
+    onRenameClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -649,6 +693,14 @@ private fun ChatHistoryRow(conversation: ConversationEntity, onClick: () -> Unit
                 style = MaterialTheme.typography.labelSmall,
             )
         }
+        Text(
+            "이름 변경",
+            color = SnipBlue,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRenameClick)
+                .padding(8.dp),
+        )
         Text(
             "삭제",
             color = Color(0xFFEF9A9A),
